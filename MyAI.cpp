@@ -8,17 +8,17 @@ MyAI::MyAI(void){}
 MyAI::~MyAI(void){}
 
 bool MyAI::protocol_version(const char* data[], char* response){
-	strcpy(response, "1.0.0");
+  strcpy(response, "1.0.0");
   return 0;
 }
 
 bool MyAI::name(const char* data[], char* response){
-	strcpy(response, "MyAI");
+	strcpy(response, "ProtoAI");
 	return 0;
 }
 
 bool MyAI::version(const char* data[], char* response){
-	strcpy(response, "1.0.0");
+	strcpy(response, "0.0.2");
 	return 0;
 }
 
@@ -61,10 +61,12 @@ bool MyAI::reset_board(const char* data[], char* response){
 }
 
 bool MyAI::num_repetition(const char* data[], char* response){
+  sscanf(data[1], "%d", &(this->repetition));
   return 0;
 }
 
 bool MyAI::num_moves_to_draw(const char* data[], char* response){
+  sscanf(data[1], "%d", &(this->moves_to_draw));
   return 0;
 }
 

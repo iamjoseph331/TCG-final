@@ -66,6 +66,8 @@ private:
 	int CoverChess[14];
 	int Red_Chess_Num, Black_Chess_Num;
 	int node;
+	int moves_to_draw;
+	int repetition;
 
 	// Utils
 	int GetFin(char c);

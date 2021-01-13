@@ -1,0 +1,8 @@
+1 name
+2 version
+7 reset_board
+15 time_settings 900000
+14 ready
+11 flip c1 P
+16 time_left red 900000
+12 genmove black
