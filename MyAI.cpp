@@ -106,6 +106,7 @@ bool MyAI::game_over(const char* data[], char* response){
 }
 
 bool MyAI::ready(const char* data[], char* response){
+  //test();
   return 0;
 }
 
@@ -131,14 +132,14 @@ bool MyAI::showboard(const char* data[], char* response){
 
 // *********************** AI FUNCTION *********************** //
 
-int MyAI::GetFin(char c)
+int MyAI::GetFin(char c)//get Final piece name from ID(16)
 {
 	static const char skind[]={'-','K','G','M','R','N','C','P','X','k','g','m','r','n','c','p'};
 	for(int f=0;f<16;f++)if(c==skind[f])return f;
 	return -1;
 }
 
-int MyAI::ConvertChessNo(int input)
+int MyAI::ConvertChessNo(int input)//convert ID(16) to ID(14)
 {
 	switch(input)
 	{
@@ -194,6 +195,17 @@ int MyAI::ConvertChessNo(int input)
 	return -1;
 }
 
+void MyAI::test()
+{
+	int test_board[32] = {0};
+	for(int i = 0; i < 32; ++i)
+	{
+		std::cin >> test_board[i];
+	}
+	std:: cout << "Evaluate:\n";
+	std::cout << Evaluate(test_board) << std::endl;
+}
+
 
 void MyAI::initBoardState()
 {	
@@ -201,7 +213,7 @@ void MyAI::initBoardState()
 	memcpy(this->CoverChess,iPieceCount,sizeof(int)*14);
 	Red_Chess_Num = 16; Black_Chess_Num = 16;
 
-	//convert to my format
+	//convert to ID(14)
 	int Index = 0;
 	for(int i=0;i<8;i++)
 	{
@@ -471,16 +483,17 @@ bool MyAI::Referee(const int* chess, const int from_location_no, const int to_lo
 // always use my point of view, so use this->Color
 double MyAI::Evaluate(const int* board){
 	// total score
-	double score = 1943; // 1*5+180*2+6*2+18*2+90*2+270*2+810*1
+	double score = 1943 * 6; // 1*5+180*2+6*2+18*2+90*2+270*2+810*1
+	double position_value_rate = 0.2;
 	// static material values
 	// cover and empty are both zero
 	static const double values[14] = {1,180,6,18,90,270,810,1,180,6,18,90,270,810};
 	for(int i = 0; i < 32; i++){
 		if(!(board[i] == CHESS_EMPTY || board[i] == CHESS_COVER)){
-			if(board[i] / 7 == this->Color){
-				score += values[board[i]];
+			if(this->mine[this->Color][board[i]]){// my piece
+				score += values[board[i]] * (1 + this->position_value[this->position_index[board[i]]][i] * position_value_rate);
 			}else{
-				score -= values[board[i]];
+				score -= values[board[i]] * (1 + this->position_value[this->position_index[board[i]]][i] * position_value_rate);
 			}
 		}
 	}

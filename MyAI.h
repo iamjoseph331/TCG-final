@@ -6,6 +6,7 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <iostream>
 
 #define RED 0
 #define BLACK 1
@@ -60,7 +61,7 @@ public:
 	bool showboard(const char* data[], char* response);// 17
 
 private:
-	int Color;
+	int Color = 0;
 	int Red_Time, Black_Time;
 	int Board[32];
 	int CoverChess[14];
@@ -86,6 +87,29 @@ private:
 	// Display
 	void Pirnf_Chess(int chess_no,char *Result);
 	void Pirnf_Chessboard();
+
+
+	//Final
+	void test();
+	const bool mine[2][14] = {{1,1,1,1,1,1,1,0,0,0,0,0,0,0},{0,0,0,0,0,0,0,1,1,1,1,1,1,1}};
+	const int position_value[2][32] = {{1,2,2,1,
+																		2,4,4,2,
+																		2,4,4,2,
+																		4,6,6,4,
+																		4,6,6,4,
+																		2,4,4,2,
+																		2,4,4,2,
+																		1,2,2,1},
+																		{6,4,4,6,
+																		4,2,2,4,
+																		4,2,2,4,
+																		2,1,1,2,
+																		2,1,1,2,
+																		4,2,2,4,
+																		4,2,2,4,
+																		6,4,4,6}};
+	const int position_index[14] = {0,1,0,0,0,0,0,0,1,0,0,0,0,0};
+	//ToDo
 	
 };
 
