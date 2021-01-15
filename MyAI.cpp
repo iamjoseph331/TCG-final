@@ -3,6 +3,18 @@
 
 #define DEPTH_LIMIT 3
 
+struct node
+{
+	int board[32];
+	int rbc_pieces[3][16];
+	int rbc_cnt[3];
+
+	int has_king;
+};
+
+node myNodes[1000000]; 
+int nodecnt = 0;
+
 MyAI::MyAI(void){}
 
 MyAI::~MyAI(void){}
@@ -18,7 +30,7 @@ bool MyAI::name(const char* data[], char* response){
 }
 
 bool MyAI::version(const char* data[], char* response){
-	strcpy(response, "0.0.2");
+	strcpy(response, "0.0.4");
 	return 0;
 }
 
@@ -106,7 +118,7 @@ bool MyAI::game_over(const char* data[], char* response){
 }
 
 bool MyAI::ready(const char* data[], char* response){
-  //test();
+  test();
   return 0;
 }
 
@@ -198,14 +210,40 @@ int MyAI::ConvertChessNo(int input)//convert ID(16) to ID(14)
 void MyAI::test()
 {
 	int test_board[32] = {0};
+	std::vector<int> red, black, cover, result;
 	for(int i = 0; i < 32; ++i)
 	{
 		std::cin >> test_board[i];
+		if(test_board[i] >= 0 && test_board[i] < 7)
+		{
+			red.push_back(i);
+		}
+		else if(test_board[i] >= 7 && test_board[i] < 14)
+		{
+			black.push_back(i);
+		}
+		else if(test_board[i] == CHESS_COVER)
+		{
+			cover.push_back(i);
+		}
 	}
-	std:: cout << "Evaluate:\n";
-	std::cout << Evaluate(test_board) << std::endl;
-}
+	cout << "MakeMove:\n";
+	int c;
+	cin >> c;
+	
+	copy(test_board, test_board+32, myNodes[0].board);
+	copy(red.begin(), red.end(), myNodes[0].rbc_pieces[0]);
+	copy(black.begin(), black.end(), myNodes[0].rbc_pieces[1]);
+	copy(cover.begin(), cover.end(), myNodes[0].rbc_pieces[2]);
+	myNodes[0].rbc_cnt[0] = red.size();
+	myNodes[0].rbc_cnt[1] = black.size();
+	myNodes[0].rbc_cnt[2] = cover.size();
+	myNodes[0].has_king = 3;
+	nodecnt += 1;
 
+	int id = MakeMove(0, c, 6);
+	for(auto a : result)cout << a << endl;
+}
 
 void MyAI::initBoardState()
 {	
@@ -234,6 +272,7 @@ void MyAI::generateMove(char move[6])
 	int EndPoint = 0;
 
 	int best_move = 0;
+	
 	double t = Nega_max(this->Board, &best_move, this->Red_Chess_Num, this->Black_Chess_Num, this->CoverChess, this->Color, 0, DEPTH_LIMIT);
 	
 	startPoint = best_move/100;
@@ -253,11 +292,12 @@ void MyAI::generateMove(char move[6])
 	this->Pirnf_Chessboard();
 }
 
-void MyAI::MakeMove(int* board, int* red_chess_num, int* black_chess_num, int* cover_chess, const int move, const int chess){
+void MyAI::MakeMove(int* board, int* red_chess_num, int* black_chess_num, int* cover_chess, const int move, const int chess)
+{
 	int src = move/100, dst = move%100;
 	if(src == dst){ 
 		board[src] = chess;
-		cover_chess[chess]--;
+		cover_chess[chess] -= 1;
 	}else { 
 		if(board[dst] != CHESS_EMPTY){
 			if(board[dst] / 7 == 0){
@@ -269,6 +309,83 @@ void MyAI::MakeMove(int* board, int* red_chess_num, int* black_chess_num, int* c
 		board[dst] = board[src];
 		board[src] = CHESS_EMPTY;
 	}
+}
+
+int MyAI::MakeMove(int id, int move, const int chess)//beware param chess
+{
+	int src = move / 100, dst = move % 100;
+	int color = mine[1][chess];
+
+	copy(myNodes[id].board, myNodes[id].board + 32, myNodes[nodecnt].board);
+
+	copy(myNodes[id].rbc_pieces[color], myNodes[id].rbc_pieces[color] + 16, myNodes[nodecnt].rbc_pieces[color]);
+	copy(myNodes[id].rbc_pieces[!color], myNodes[id].rbc_pieces[!color] + 16, myNodes[nodecnt].rbc_pieces[!color]);
+	copy(myNodes[id].rbc_pieces[2], myNodes[id].rbc_pieces[2] + 16, myNodes[nodecnt].rbc_pieces[2]);
+
+	copy(myNodes[id].rbc_cnt, myNodes[id].rbc_cnt + 3, myNodes[nodecnt].rbc_cnt);
+	myNodes[nodecnt].has_king = myNodes[id].has_king;
+
+	if(src == dst) //flip
+	{
+		myNodes[nodecnt].board[src] = chess;
+		myNodes[nodecnt].rbc_pieces[color][myNodes[nodecnt].rbc_cnt[color]] = src;
+		myNodes[nodecnt].rbc_cnt[color] += 1;
+
+		bool flag = false;
+		for(int i = 0; i < myNodes[nodecnt].rbc_cnt[2] - 1; ++i)
+		{
+			if(flag)
+			{
+				myNodes[nodecnt].rbc_pieces[2][i] = myNodes[nodecnt].rbc_pieces[2][i + 1]; 
+			}
+			else if(dst == myNodes[nodecnt].rbc_pieces[2][i])
+			{
+				myNodes[nodecnt].rbc_pieces[2][i] = myNodes[nodecnt].rbc_pieces[2][i + 1]; 
+				flag = true;
+			}
+		}
+
+		myNodes[nodecnt].rbc_cnt[2] -= 1;//cover
+	}
+	else
+	{
+		if(myNodes[id].board[dst] >= 0)//吃掉 !color 的棋 找出來減掉
+		{
+			if(myNodes[id].board[dst] % 7 == 6)
+			{
+				myNodes[nodecnt].has_king &= (!color + 1);
+			}
+
+			bool flag = false;
+			for(int i = 0; i < myNodes[nodecnt].rbc_cnt[!color] - 1; ++i)
+			{
+				if(flag)
+				{
+					myNodes[nodecnt].rbc_pieces[!color][i] = myNodes[nodecnt].rbc_pieces[!color][i + 1]; 
+				}
+				else if(dst == myNodes[nodecnt].rbc_pieces[!color][i])
+				{
+					myNodes[nodecnt].rbc_pieces[!color][i] = myNodes[nodecnt].rbc_pieces[!color][i + 1]; 
+					flag = true;
+				}
+			}
+			myNodes[nodecnt].rbc_cnt[!color] -= 1;
+		}
+
+		for(int i = 0; i < myNodes[nodecnt].rbc_cnt[color]; ++i)
+		{
+			if(src == myNodes[nodecnt].rbc_pieces[color][i])
+			{
+				myNodes[nodecnt].rbc_pieces[color][i] = dst;
+				break;
+			}
+		}
+		myNodes[nodecnt].board[dst] = myNodes[id].board[src];
+		myNodes[id].board[src] = CHESS_EMPTY;
+
+	}
+	nodecnt += 1;
+	return nodecnt - 1;
 }
 
 void MyAI::MakeMove(int* board, int* red_chess_num, int* black_chess_num, int* cover_chess, const char move[6])
@@ -297,7 +414,96 @@ void MyAI::MakeMove(int* board, int* red_chess_num, int* black_chess_num, int* c
 	/* init time */
 }
 
-int MyAI::Expand(const int* board, const int color,int *Result)
+int MyAI::CannonMoves(const int* board, const int position, vector<int> *EatMoves, vector<int> *WalkMoves)
+{
+	int from = 100 * position;
+	int dirs = move_dir_count[position];
+	for(int i = 0; i < dirs; ++i)
+	{
+		int to = move_destinations[position][i];
+		if(board[to] == CHESS_EMPTY)
+		{
+			WalkMoves->push_back(from + to);
+		}
+	}
+	int cannon = board[position];
+	
+	bool flag = false;
+	for(int i = position + 4; i < 32; i += 4)
+	{
+		if(flag && board[i] >= 0)
+		{
+			if(capture_chart[cannon][board[i]])
+			{
+				EatMoves->push_back(from + i);
+				break;
+			}
+			else break;
+		}
+		if(board[i] != CHESS_EMPTY)
+		{
+			flag = true;
+		}
+	}
+
+	flag = false;
+	for(int i = position - 4; i >= 0; i -= 4)
+	{
+		if(flag && board[i] >= 0)
+		{
+			if(capture_chart[cannon][board[i]])
+			{
+				EatMoves->push_back(from + i);
+				break;
+			}
+			else break;
+		}
+		if(board[i] != CHESS_EMPTY)
+		{
+			flag = true;
+		}
+	}
+
+	flag = false;
+	for(int i = position - 1; i % 4 != 3; i -= 1)
+	{
+		if(flag && board[i] >= 0)
+		{
+			if(capture_chart[cannon][board[i]])
+			{
+				EatMoves->push_back(from + i);
+				break;
+			}
+			else break;
+		}
+		if(board[i] != CHESS_EMPTY)
+		{
+			flag = true;
+		}
+	}	
+
+	flag = false;
+	for(int i = position + 1; i % 4 != 0; i += 1)
+	{
+		if(flag && board[i] >= 0)
+		{
+			if(capture_chart[cannon][board[i]])
+			{
+				EatMoves->push_back(from + i);
+				break;
+			}
+			else break;
+		}
+		if(board[i] != CHESS_EMPTY)
+		{
+			flag = true;
+		}
+	}
+	return EatMoves->size() + WalkMoves->size();
+}
+
+// Deprecicated
+int MyAI::Expand(const int* board, const int color, int *Result)
 {
 	int ResultCount = 0;
 	for(int i=0;i<32;i++)
@@ -305,7 +511,7 @@ int MyAI::Expand(const int* board, const int color,int *Result)
 		if(board[i] >= 0 && board[i]/7 == color)
 		{
 			//Gun
-			if(board[i] % 7 == 1)
+			if(cannon_index[board[i]])
 			{
 				int row = i/4;
 				int col = i%4;
@@ -332,7 +538,6 @@ int MyAI::Expand(const int* board, const int color,int *Result)
 				int Move[4] = {i-4,i+1,i+4,i-1};
 				for(int k=0; k<4;k++)
 				{
-					
 					if(Move[k] >= 0 && Move[k] < 32 && Referee(board,i,Move[k],color))
 					{
 						Result[ResultCount] = i*100+Move[k];
@@ -340,12 +545,32 @@ int MyAI::Expand(const int* board, const int color,int *Result)
 					}
 				}
 			}
-		
-		};
+		}
 	}
 	return ResultCount;
 }
 
+int MyAI::Expand(const int* board, const int* pieces, const int p_cnt, vector<int> *Result) 
+{
+	Result->clear();
+	vector<int> eats, walks; 
+	for(int i = 0; i < p_cnt; ++i)
+	{
+		int a = pieces[i];
+		if(cannon_index[board[a]])
+		{
+			CannonMoves(board, a, &eats, &walks);
+		}
+		else
+		{
+			Piece_Moves(board, a, &eats, &walks);
+		}
+	}
+	Result->resize(eats.size() + walks.size());
+	copy(eats.begin(), eats.end(), Result->begin());
+	copy(walks.begin(), walks.end(), Result->begin() + eats.size());
+	return Result->size();
+}
 
 // Referee
 bool MyAI::Referee(const int* chess, const int from_location_no, const int to_location_no, const int UserId)
@@ -480,28 +705,98 @@ bool MyAI::Referee(const int* chess, const int from_location_no, const int to_lo
 	return IsCurrent;
 }
 
-// always use my point of view, so use this->Color
-double MyAI::Evaluate(const int* board){
-	// total score
-	double score = 1943 * 6; // 1*5+180*2+6*2+18*2+90*2+270*2+810*1
-	double position_value_rate = 0.2;
-	// static material values
-	// cover and empty are both zero
-	static const double values[14] = {1,180,6,18,90,270,810,1,180,6,18,90,270,810};
-	for(int i = 0; i < 32; i++){
-		if(!(board[i] == CHESS_EMPTY || board[i] == CHESS_COVER)){
-			if(this->mine[this->Color][board[i]]){// my piece
-				score += values[board[i]] * (1 + this->position_value[this->position_index[board[i]]][i] * position_value_rate);
-			}else{
-				score -= values[board[i]] * (1 + this->position_value[this->position_index[board[i]]][i] * position_value_rate);
+int MyAI::Piece_Moves(const int* board, const int from_location_no, vector<int> *EatMoves, vector<int> *WalkMoves)
+{
+	static const int values[14] = {20,75,30,40,50,80,165,20,75,30,40,50,80,165};
+	int value = 0;
+	int mv_cnt = move_dir_count[from_location_no];
+	int from = from_location_no * 100;
+	for(int i = 0; i < mv_cnt; ++i)
+	{
+		int des = move_destinations[from_location_no][i];
+		if(board[des] == CHESS_COVER)
+		{
+			continue;//can't move to cover
+		}
+		else if(board[des] == CHESS_EMPTY)
+		{
+			WalkMoves->push_back(from + des);
+		}
+		else
+		{
+			if(capture_chart[board[from_location_no]][board[des]])
+			{
+				EatMoves->push_back(from + des);
+				value += values[board[des]];
 			}
 		}
 	}
-
-	return score;
+	return value;
 }
 
-double MyAI::Nega_max(const int* board, int* move, const int red_chess_num, const int black_chess_num, const int* cover_chess, const int color, const int depth, const int remain_depth){
+// Depreciated
+double MyAI::Evaluate(const int* board)
+{
+	// total score
+	double my_score = 0.0, enemy_score = 0.0;
+	double position_value_rate = 0.2;
+	//double attack_rate = 2;
+	// static material values
+	// cover and empty are both zero
+	static const double values[14] = {20,75,30,40,50,80,165,20,75,30,40,50,80,165};
+	for(int i = 0; i < 32; i++){
+		if(!(board[i] == CHESS_EMPTY || board[i] == CHESS_COVER)){
+
+			if(mine[this->Color][board[i]]){// my piece
+
+				my_score += values[board[i]] * (1 + this->position_value[this->cannon_index[board[i]]][i] * position_value_rate);
+			}else{
+
+				enemy_score += values[board[i]] *(1 + this->position_value[this->cannon_index[board[i]]][i] * position_value_rate);
+			}
+
+		}
+	}
+	return my_score - enemy_score;
+}
+
+// always use my point of view, so use this->Color
+double MyAI::Evaluate(const int nodeId)
+{
+	// total score
+	double red_score = 0.0, black_score = 0.0;
+	double attack_rate = 1.0;
+	// static material values
+	// cover and empty are both zero
+	static const double values[14] = {20,75,30,40,50,80,165,20,75,30,40,50,80,165};
+
+	vector<int> eat_moves, walk_moves;
+	
+	for(int i = 0; i < myNodes[nodeId].rbc_cnt[0]; ++i)
+	{
+		int a = myNodes[nodeId].rbc_pieces[0][i];
+		red_score += values[myNodes[nodeId].board[a]]; //子力價值
+		red_score += attack_rate * Piece_Moves(myNodes[nodeId].board, a, &eat_moves, &walk_moves);//可以吃到對方的分數
+		red_score += position_value[cannon_index[myNodes[nodeId].board[a]]][a];//位置得分
+	}
+
+	for(int i = 0; i < myNodes[nodeId].rbc_cnt[1]; ++i)
+	{
+		int b = myNodes[nodeId].rbc_pieces[1][i];
+		black_score += values[myNodes[nodeId].board[b]]; //子力價值
+		black_score += Piece_Moves(myNodes[nodeId].board, b, &eat_moves, &walk_moves);//可以吃到對方的分數
+		black_score += position_value[cannon_index[myNodes[nodeId].board[b]]][b];//位置得分
+	}
+	if(this->Color == RED)
+	{
+		return red_score - black_score;
+	}
+	return black_score - red_score;
+}
+
+// Depreciated
+double MyAI::Nega_max(const int* board, int* move, const int red_chess_num, const int black_chess_num, const int* cover_chess, const int color, const int depth, const int remain_depth)
+{
 	if(remain_depth == 0){ // reach limit of depth
 		this->node++;
 		return Evaluate(board) * (2*((depth&1)^1)-1); // odd: *-1, even: *1
@@ -510,15 +805,19 @@ double MyAI::Nega_max(const int* board, int* move, const int red_chess_num, cons
 		return Evaluate(board) * (2*((depth&1)^1)-1);
 	}
 
-	int Result[1024];
+	vector<int> Result2;
+	int Result[2048];
 	// Moves[] = {move} U {flip}, Chess[] = {remain chess}
 	int Moves[2048], Chess[2048];
 	int flip_count = 0, remain_count = 0, remain_total = 0;
 	int move_count = 0;
 
 	// move
+	//move_count = Expand(board, &pieces[color], &Result2);
 	move_count = Expand(board, color, Result);
+
 	memcpy(Moves, Result, sizeof(int)*move_count);
+	//copy(Result2.begin(), Result2.end(), Moves);
 	// flip
 	for(int j = 0; j < 14; j++){ // find remain chess
 		if(cover_chess[j] > 0){
@@ -581,6 +880,86 @@ double MyAI::Nega_max(const int* board, int* move, const int red_chess_num, cons
 	}
 }
 
+double MyAI::MiniF4(int id, double alpha, double beta, int depth)
+{
+	bool color = (depth&1) ^ (!(this->Color));
+	vector<int> successor_positions;
+	Expand(myNodes[id].board, myNodes[id].rbc_pieces[color], myNodes[id].rbc_cnt[color], &successor_positions);
+	int b = successor_positions.size();
+	if(b == 0 || depth == 0)
+	{
+		return Evaluate(id);
+	}
+	//begin
+	double m = -1 * INF;
+	int p1 = MakeMove(id, successor_positions[0], -1);
+	m = max(m, MiniG4(p1, alpha, beta, depth - 1));
+	if(m >= beta)return m;
+
+	for(int i = 1; i < b; ++i)
+	{
+		int pi = MakeMove(id, successor_positions[i], -1);
+		double t = MiniG4(pi, m, m+1, depth - 1);
+		if(t > m)//failed high
+		{
+			if(depth < 3 || t >= beta)
+			{
+				m = t;
+			}
+			else
+			{
+				m = MiniG4(pi, t, beta, depth - 1);
+			}
+		}
+		if(m >= beta)
+		{
+			return m;
+		}
+	}
+	//end
+	return m;
+}
+ 
+double MyAI::MiniG4(int id, double alpha, double beta, int depth)
+{
+	bool color = (depth&1) ^ (!(this->Color));
+	vector<int> successor_positions;
+	Expand(myNodes[id].board, myNodes[id].rbc_pieces[color], myNodes[id].rbc_cnt[color], &successor_positions);
+	int b = successor_positions.size();
+	if(b == 0 || depth == 0)
+	{
+		return Evaluate(id);
+	}
+	//begin
+	double m = INF;
+	int p1 = MakeMove(id, successor_positions[0], -1);
+	m = min(m, MiniF4(p1, alpha, beta, depth - 1));
+	if(m <= alpha)return m;
+
+	for(int i = 1; i < b; ++i)
+	{
+		int pi = MakeMove(id, successor_positions[i], -1);
+		double t = MiniF4(pi, m - 1, m, depth - 1);
+		if(t < m)//failed low
+		{
+			if(depth < 3 || t <= alpha)
+			{
+				m = t;
+			}
+			else
+			{
+				m = MiniF4(pi, alpha, t, depth - 1);
+			}
+		}
+		if(m <= alpha)
+		{
+			return m;
+		}
+	}
+	//end
+	return m;
+}
+
 //Display chess board
 void MyAI::Pirnf_Chessboard()
 {	
@@ -617,7 +996,6 @@ void MyAI::Pirnf_Chessboard()
 	strcat(Mes,"\n\n");
 	printf("%s",Mes);
 }
-
 
 //Print chess
 void  MyAI::Pirnf_Chess(int chess_no,char *Result)

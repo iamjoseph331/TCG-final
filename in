@@ -1,8 +1,8 @@
-1 name
-2 version
-7 reset_board
-15 time_settings 900000
-14 ready
-11 flip c1 P
-16 time_left red 900000
-12 genmove black
+R    X    X    m 
+-    c    P    P 
+P    C    -    M 
+-    G    -    - 
+C    c    G    C 
+-    -    -    N 
+c    g    P    k 
+m    N    M    - 
