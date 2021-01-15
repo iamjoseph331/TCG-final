@@ -30,7 +30,7 @@ bool MyAI::name(const char* data[], char* response){
 }
 
 bool MyAI::version(const char* data[], char* response){
-	strcpy(response, "0.0.4");
+	strcpy(response, "0.0.5");
 	return 0;
 }
 
@@ -957,6 +957,40 @@ double MyAI::MiniG4(int id, double alpha, double beta, int depth)
 		}
 	}
 	//end
+	return m;
+}
+
+double MyAI::NegaScout(int id, double alpha, double beta, int depth)
+{
+	bool color = (depth&1) ^ (!(this->Color));
+	vector<int> successor_positions;
+	Expand(myNodes[id].board, myNodes[id].rbc_pieces[color], myNodes[id].rbc_cnt[color], &successor_positions);
+	int b = successor_positions.size();
+	if(b == 0 || depth == 0)
+	{
+		return Evaluate(id);
+	}
+	//begin
+	double m = -1 * INF;
+	double n = beta;
+	for(int i = 0; i < b; ++i)
+	{
+		int pi = MakeMove(id, successor_positions[i], -1);
+		double t = -1 * NegaScout(pi, -1 * n, -1 * max(alpha, m), depth - 1);
+		if(t > m)
+		{
+			if(n == beta || depth < 3 || t >= beta)
+			{
+				m = t;
+			}
+			else
+			{
+				m = -1 * NegaScout(pi, -1 * beta, -1 * t, depth - 1);
+			}
+		}
+		if(m >= beta)return m;
+		n = max(alpha, m) + 1;
+	}
 	return m;
 }
 

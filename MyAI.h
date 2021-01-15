@@ -101,6 +101,7 @@ private:
 	int CannonMoves(const int* board, const int position, vector<int> *EatMoves, vector<int> *WalkMoves);
 	double MiniF4(int id, double alpha, double beta, int depth);
 	double MiniG4(int id, double alpha, double beta, int depth);
+	double NegaScout(int id, double alpha, double beta, int depth);
 
 	const bool mine[2][14] = {{1,1,1,1,1,1,1,0,0,0,0,0,0,0},{0,0,0,0,0,0,0,1,1,1,1,1,1,1}};
 	const int position_value[2][32] = {{1,2,2,1,
