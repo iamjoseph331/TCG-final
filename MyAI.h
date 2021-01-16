@@ -40,6 +40,18 @@ class MyAI
   	"showboard"
 	};
 public:
+
+	struct node
+	{
+		int board[32];
+		int rbc_pieces[3][16];
+		int rbc_cnt[3];
+
+		int has_king;
+		int PV;
+		int value;
+	};
+
 	MyAI(void);
 	~MyAI(void);
 
@@ -69,7 +81,7 @@ private:
 	int Board[32];
 	int CoverChess[14];
 	int Red_Chess_Num, Black_Chess_Num;
-	int node;
+	//int node;
 	int moves_to_draw;
 	int repetition;
 
@@ -82,12 +94,12 @@ private:
 	void generateMove(char move[6]);
 	void MakeMove(int* board, int* red_chess_num, int* black_chess_num, int* cover_chess, const int move, const int chess);
 	void MakeMove(int* board, int* red_chess_num, int* black_chess_num, int* cover_chess, const char move[6]);
-	int MakeMove(int id, int move, const int chess);
+	void MakeMove(const node* board_node, node* new_node, int move, const int chess);
 	bool Referee(const int* board, const int Startoint, const int EndPoint, const int color);
 	int Expand(const int* board, const int color, int *Result);
 	int Expand(const int* board, const int* pieces, const int p_cnt, vector<int> *Result);
 	double Evaluate(const int* board);
-	double Evaluate(const int nodeId);
+	double Evaluate(const node* board_node);
 	double Nega_max(const int* board, int* move, const int red_chess_num, const int black_chess_num, const int* cover_chess, const int color, const int depth, const int remain_depth);
 
 	// Display
@@ -99,9 +111,9 @@ private:
 	void test();
 	int Piece_Moves(const int* board, const int from_location_no, std::vector<int> *EatMoves, std::vector<int> *WalkMoves);
 	int CannonMoves(const int* board, const int position, vector<int> *EatMoves, vector<int> *WalkMoves);
-	double MiniF4(int id, double alpha, double beta, int depth);
-	double MiniG4(int id, double alpha, double beta, int depth);
-	double NegaScout(int id, double alpha, double beta, int depth);
+	double MiniF4(node* board_node, double alpha, double beta, int depth);
+	double MiniG4(node* board_node, double alpha, double beta, int depth);
+	double NegaScout(node* board_node, double alpha, double beta, int depth);
 
 	const bool mine[2][14] = {{1,1,1,1,1,1,1,0,0,0,0,0,0,0},{0,0,0,0,0,0,0,1,1,1,1,1,1,1}};
 	const int position_value[2][32] = {{1,2,2,1,
