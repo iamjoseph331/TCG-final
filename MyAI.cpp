@@ -1,7 +1,7 @@
 #include "float.h"
 #include "MyAI.h"
 
-#define DEPTH_LIMIT 3
+#define DEPTH_LIMIT 5
 
 struct node
 {
@@ -10,6 +10,8 @@ struct node
 	int rbc_cnt[3];
 
 	int has_king;
+	int PV;
+	int value;
 };
 
 node myNodes[1000000]; 
@@ -30,7 +32,7 @@ bool MyAI::name(const char* data[], char* response){
 }
 
 bool MyAI::version(const char* data[], char* response){
-	strcpy(response, "0.0.5");
+	strcpy(response, "0.0.9");
 	return 0;
 }
 
@@ -118,7 +120,7 @@ bool MyAI::game_over(const char* data[], char* response){
 }
 
 bool MyAI::ready(const char* data[], char* response){
-  test();
+  //test();
   return 0;
 }
 
@@ -230,7 +232,9 @@ void MyAI::test()
 	cout << "MakeMove:\n";
 	int c;
 	cin >> c;
-	
+	this->Color = c;
+
+
 	copy(test_board, test_board+32, myNodes[0].board);
 	copy(red.begin(), red.end(), myNodes[0].rbc_pieces[0]);
 	copy(black.begin(), black.end(), myNodes[0].rbc_pieces[1]);
@@ -241,8 +245,9 @@ void MyAI::test()
 	myNodes[0].has_king = 3;
 	nodecnt += 1;
 
-	int id = MakeMove(0, c, 6);
-	for(auto a : result)cout << a << endl;
+	int maxVal = MiniF4(0, -1*INF, INF, 5);
+	cout << "BestMove: " << myNodes[0].PV << endl;
+	cout << "Value: " << maxVal << endl;
 }
 
 void MyAI::initBoardState()
@@ -271,9 +276,38 @@ void MyAI::generateMove(char move[6])
 	int startPoint = 0;
 	int EndPoint = 0;
 
-	int best_move = 0;
+	int test_board[32] = {0};
+	std::vector<int> red, black, cover, result;
+	for(int i = 0; i < 32; ++i)
+	{
+		if(this->Board[i] >= 0 && this->Board[i] < 7)
+		{
+			red.push_back(i);
+		}
+		else if(this->Board[i] >= 7 && this->Board[i] < 14)
+		{
+			black.push_back(i);
+		}
+		else if(this->Board[i] == CHESS_COVER)
+		{
+			cover.push_back(i);
+		}
+	}
+	copy(this->Board, this->Board+32, myNodes[0].board);
+	copy(red.begin(), red.end(), myNodes[0].rbc_pieces[0]);
+	copy(black.begin(), black.end(), myNodes[0].rbc_pieces[1]);
+	copy(cover.begin(), cover.end(), myNodes[0].rbc_pieces[2]);
+	myNodes[0].rbc_cnt[0] = red.size();
+	myNodes[0].rbc_cnt[1] = black.size();
+	myNodes[0].rbc_cnt[2] = cover.size();
+	myNodes[0].has_king = 3;
+	nodecnt = 1;
+
+	int maxVal = MiniF4(0, -1*INF, INF, DEPTH_LIMIT);
+
+	int best_move = myNodes[0].PV;
 	
-	double t = Nega_max(this->Board, &best_move, this->Red_Chess_Num, this->Black_Chess_Num, this->CoverChess, this->Color, 0, DEPTH_LIMIT);
+	//double t = Nega_max(this->Board, &best_move, this->Red_Chess_Num, this->Black_Chess_Num, this->CoverChess, this->Color, 0, DEPTH_LIMIT);
 	
 	startPoint = best_move/100;
 	EndPoint   = best_move%100;
@@ -284,7 +318,7 @@ void MyAI::generateMove(char move[6])
 	Pirnf_Chess(Board[startPoint],chess_Start);
 	Pirnf_Chess(Board[EndPoint],chess_End);
 	printf("My result: \n--------------------------\n");
-	printf("Nega max: %lf (node: %d)\n", t, this->node);
+	printf("Nega max: %d (node: %d)\n", maxVal, this->node);
 	printf("(%d) -> (%d)\n",startPoint,EndPoint);
 	printf("<%s> -> <%s>\n",chess_Start,chess_End);
 	printf("move:%s\n",move);
@@ -381,7 +415,7 @@ int MyAI::MakeMove(int id, int move, const int chess)//beware param chess
 			}
 		}
 		myNodes[nodecnt].board[dst] = myNodes[id].board[src];
-		myNodes[id].board[src] = CHESS_EMPTY;
+		myNodes[nodecnt].board[src] = CHESS_EMPTY;
 
 	}
 	nodecnt += 1;
@@ -465,7 +499,7 @@ int MyAI::CannonMoves(const int* board, const int position, vector<int> *EatMove
 	}
 
 	flag = false;
-	for(int i = position - 1; i % 4 != 3; i -= 1)
+	for(int i = position - 1; (i + 4) % 4 != 3; i -= 1)
 	{
 		if(flag && board[i] >= 0)
 		{
@@ -813,11 +847,9 @@ double MyAI::Nega_max(const int* board, int* move, const int red_chess_num, cons
 	int move_count = 0;
 
 	// move
-	//move_count = Expand(board, &pieces[color], &Result2);
 	move_count = Expand(board, color, Result);
 
 	memcpy(Moves, Result, sizeof(int)*move_count);
-	//copy(Result2.begin(), Result2.end(), Moves);
 	// flip
 	for(int j = 0; j < 14; j++){ // find remain chess
 		if(cover_chess[j] > 0){
@@ -882,26 +914,39 @@ double MyAI::Nega_max(const int* board, int* move, const int red_chess_num, cons
 
 double MyAI::MiniF4(int id, double alpha, double beta, int depth)
 {
-	bool color = (depth&1) ^ (!(this->Color));
+	//cout << "MaxNode :" << id << endl;
+	bool color = this->Color;
 	vector<int> successor_positions;
 	Expand(myNodes[id].board, myNodes[id].rbc_pieces[color], myNodes[id].rbc_cnt[color], &successor_positions);
 	int b = successor_positions.size();
 	if(b == 0 || depth == 0)
 	{
-		return Evaluate(id);
+		int val = Evaluate(id);
+		myNodes[id].value = val;
+		return val;
 	}
 	//begin
 	double m = -1 * INF;
 	int p1 = MakeMove(id, successor_positions[0], -1);
+	if(id == 0)cout << "subtree: " << p1 << " by move: " << successor_positions[0] << endl;
 	m = max(m, MiniG4(p1, alpha, beta, depth - 1));
-	if(m >= beta)return m;
+	myNodes[id].PV = successor_positions[0];
+	myNodes[id].value = m;
 
+	if(m >= beta)
+	{	
+		//cout << "betacut: " << id << endl;
+		return m;
+	}
 	for(int i = 1; i < b; ++i)
 	{
 		int pi = MakeMove(id, successor_positions[i], -1);
 		double t = MiniG4(pi, m, m+1, depth - 1);
+		if(id == 0)cout << "subtree: " << pi << " by move: " << successor_positions[i] << endl;
 		if(t > m)//failed high
 		{
+			//cout << "Node: " << id << " value update by move: " << successor_positions[i] << " subtree id: " << pi << endl;
+			myNodes[id].PV = successor_positions[i];
 			if(depth < 3 || t >= beta)
 			{
 				m = t;
@@ -913,35 +958,49 @@ double MyAI::MiniF4(int id, double alpha, double beta, int depth)
 		}
 		if(m >= beta)
 		{
+			//cout << "scout(b)cut: " << id << endl;
+			myNodes[id].value = m;
 			return m;
 		}
 	}
 	//end
+	myNodes[id].value = m;
 	return m;
 }
  
 double MyAI::MiniG4(int id, double alpha, double beta, int depth)
 {
-	bool color = (depth&1) ^ (!(this->Color));
+	//cout << "MinNode :" << id << endl;
+	bool color = !(this->Color);
 	vector<int> successor_positions;
 	Expand(myNodes[id].board, myNodes[id].rbc_pieces[color], myNodes[id].rbc_cnt[color], &successor_positions);
 	int b = successor_positions.size();
 	if(b == 0 || depth == 0)
 	{
-		return Evaluate(id);
+		int val = Evaluate(id);
+		myNodes[id].value = val;
+		return val;
 	}
 	//begin
 	double m = INF;
 	int p1 = MakeMove(id, successor_positions[0], -1);
+	//cout << "subtree: " << p1 << " by move: " << successor_positions[0] << endl;
 	m = min(m, MiniF4(p1, alpha, beta, depth - 1));
-	if(m <= alpha)return m;
-
+	myNodes[id].PV = successor_positions[0];
+	myNodes[id].value = m;
+	if(m <= alpha)
+	{
+		//cout << "alphacut: " << id << endl;
+		return m;
+	}
 	for(int i = 1; i < b; ++i)
 	{
 		int pi = MakeMove(id, successor_positions[i], -1);
 		double t = MiniF4(pi, m - 1, m, depth - 1);
 		if(t < m)//failed low
 		{
+			//cout << "Node: " << id << " value update by move: " << successor_positions[i] << " subtree id: " << pi << endl;
+			myNodes[id].PV = successor_positions[i];
 			if(depth < 3 || t <= alpha)
 			{
 				m = t;
@@ -953,10 +1012,13 @@ double MyAI::MiniG4(int id, double alpha, double beta, int depth)
 		}
 		if(m <= alpha)
 		{
+			//cout << "scout(a)cut: " << id << endl;
+			myNodes[id].value = m;
 			return m;
 		}
 	}
 	//end
+	myNodes[id].value = m;
 	return m;
 }
 
