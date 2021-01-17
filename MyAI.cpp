@@ -1,7 +1,7 @@
 #include "float.h"
 #include "MyAI.h"
 
-#define DEPTH_LIMIT 5
+#define DEPTH_LIMIT 7
 
 int nodecnt = 0;
 
@@ -20,7 +20,7 @@ bool MyAI::name(const char* data[], char* response){
 }
 
 bool MyAI::version(const char* data[], char* response){
-	strcpy(response, "0.0.9");
+	strcpy(response, "1.0.0");
 	return 0;
 }
 
@@ -108,7 +108,7 @@ bool MyAI::game_over(const char* data[], char* response){
 }
 
 bool MyAI::ready(const char* data[], char* response){
-  test();
+  //test();
   return 0;
 }
 
@@ -200,6 +200,7 @@ int MyAI::ConvertChessNo(int input)//convert ID(16) to ID(14)
 void MyAI::test()
 {
 	int test_board[32] = {0};
+	int cover_chess[14] = {0};
 	std::vector<int> red, black, cover, result;
 	for(int i = 0; i < 32; ++i)
 	{
@@ -234,7 +235,10 @@ void MyAI::test()
 	root.has_king = 3;
 	nodecnt += 1;
 
-	double maxVal = MiniF4(&root, -1*INF, INF, 5);
+	cover_chess[7] = 1;
+	cover_chess[12] = 1;	
+
+	double maxVal = MiniF4(&root, cover_chess, -1*INF, INF, 5);
 	cout << "BestMove: " << root.PV << endl;
 	cout << "Value: " << maxVal << endl;
 }
@@ -258,6 +262,25 @@ void MyAI::initBoardState()
 	this->Pirnf_Chessboard();
 }
 
+int MyAI::openingHeuristic(const int* board, const int cover_count)
+{
+	if(cover_count == 32)
+	{
+		return 2525;
+	}
+	else
+	{
+		for(int i = 0; i < 32; ++i)
+		{
+			if(board[i] != CHESS_COVER)
+			{
+				return 101 * second_hand[i];
+			}
+		}
+	}
+	return 404;
+}
+
 void MyAI::generateMove(char move[6])
 {
 	/* generateMove Call by reference: change src,dst */
@@ -266,35 +289,42 @@ void MyAI::generateMove(char move[6])
 	int EndPoint = 0;
 
 	node root;
-	std::vector<int> red, black, cover, result;
+	for(int i = 0; i < 3; ++i)root.rbc_cnt[i] = 0;
 	for(int i = 0; i < 32; ++i)
 	{
+		root.board[i] = this->Board[i];
 		if(this->Board[i] >= 0 && this->Board[i] < 7)
 		{
-			red.push_back(i);
+			root.rbc_pieces[0][root.rbc_cnt[0]] = i;
+			root.rbc_cnt[0] += 1;
 		}
 		else if(this->Board[i] >= 7 && this->Board[i] < 14)
 		{
-			black.push_back(i);
+			root.rbc_pieces[1][root.rbc_cnt[1]] = i;
+			root.rbc_cnt[1] += 1;
 		}
 		else if(this->Board[i] == CHESS_COVER)
 		{
-			cover.push_back(i);
+			root.rbc_pieces[2][root.rbc_cnt[2]] = i;
+			root.rbc_cnt[2] += 1;
 		}
 	}
-	copy(this->Board, this->Board+32, root.board);
-	copy(red.begin(), red.end(), root.rbc_pieces[0]);
-	copy(black.begin(), black.end(), root.rbc_pieces[1]);
-	copy(cover.begin(), cover.end(), root.rbc_pieces[2]);
-	root.rbc_cnt[0] = red.size();
-	root.rbc_cnt[1] = black.size();
-	root.rbc_cnt[2] = cover.size();
+	
 	root.has_king = 3;
 	nodecnt = 1;
 
-	int maxVal = MiniF4(0, -1*INF, INF, DEPTH_LIMIT);
-
-	int best_move = root.PV;
+	int cover_count = root.rbc_cnt[2];
+	int maxVal = 0, best_move;
+	if(cover_count > 30)
+	{
+		best_move = openingHeuristic(this->Board, cover_count);
+	}
+	else
+	{
+		maxVal = MiniF4(&root, this->CoverChess, -1*INF, INF, DEPTH_LIMIT);
+		best_move = root.PV;
+	}
+	
 	
 	//double t = Nega_max(this->Board, &best_move, this->Red_Chess_Num, this->Black_Chess_Num, this->CoverChess, this->Color, 0, DEPTH_LIMIT);
 	
@@ -304,8 +334,8 @@ void MyAI::generateMove(char move[6])
 
 	char chess_Start[4]="";
 	char chess_End[4]="";
-	Pirnf_Chess(Board[startPoint],chess_Start);
-	Pirnf_Chess(Board[EndPoint],chess_End);
+	Pirnf_Chess(this->Board[startPoint],chess_Start);
+	Pirnf_Chess(this->Board[EndPoint],chess_End);
 	printf("My result: \n--------------------------\n");
 	printf("Nega max: %d (node: %d)\n", maxVal, nodecnt);
 	printf("(%d) -> (%d)\n",startPoint,EndPoint);
@@ -338,22 +368,30 @@ void MyAI::MakeMove(int* board, int* red_chess_num, int* black_chess_num, int* c
 void MyAI::MakeMove(const node* board_node, node* new_node, int move, const int chess)//beware param chess
 {
 	int src = move / 100, dst = move % 100;
-	int color = mine[1][chess];
+	int piece = board_node->board[src];
+	int color = mine[1][piece];
 
-	copy(board_node->board, board_node->board + 32, new_node->board);
+	for(int i = 0; i < 32; ++i)
+	{
+		new_node->board[i] = board_node->board[i];
+		for(int j = 0; j < 3; ++j)
+		{
+			new_node->rbc_pieces[j][i] = board_node->rbc_pieces[j][i];
+		}
+	}
+	for(int j = 0; j < 3; ++j)
+	{
+		new_node->rbc_cnt[j] = board_node->rbc_cnt[j];
+	}
 
-	copy(board_node->rbc_pieces[color], board_node->rbc_pieces[color] + 16, new_node->rbc_pieces[color]);
-	copy(board_node->rbc_pieces[!color], board_node->rbc_pieces[!color] + 16, new_node->rbc_pieces[!color]);
-	copy(board_node->rbc_pieces[2], board_node->rbc_pieces[2] + 16, new_node->rbc_pieces[2]);
-
-	copy(board_node->rbc_cnt, board_node->rbc_cnt + 3, new_node->rbc_cnt);
 	new_node->has_king = board_node->has_king;
 
 	if(src == dst) //flip
 	{
 		new_node->board[src] = chess;
-		new_node->rbc_pieces[color][new_node->rbc_cnt[color]] = src;
-		new_node->rbc_cnt[color] += 1;
+		int belong = mine[1][chess];
+		new_node->rbc_pieces[belong][new_node->rbc_cnt[belong]] = src;
+		new_node->rbc_cnt[belong] += 1;
 
 		bool flag = false;
 		for(int i = 0; i < new_node->rbc_cnt[2] - 1; ++i)
@@ -464,6 +502,8 @@ int MyAI::CannonMoves(const int* board, const int position, vector<int> *EatMove
 		}
 		if(board[i] != CHESS_EMPTY)
 		{
+			if(flag)
+				break;
 			flag = true;
 		}
 	}
@@ -482,6 +522,8 @@ int MyAI::CannonMoves(const int* board, const int position, vector<int> *EatMove
 		}
 		if(board[i] != CHESS_EMPTY)
 		{
+			if(flag)
+				break;
 			flag = true;
 		}
 	}
@@ -500,6 +542,8 @@ int MyAI::CannonMoves(const int* board, const int position, vector<int> *EatMove
 		}
 		if(board[i] != CHESS_EMPTY)
 		{
+			if(flag)
+				break;
 			flag = true;
 		}
 	}	
@@ -518,16 +562,19 @@ int MyAI::CannonMoves(const int* board, const int position, vector<int> *EatMove
 		}
 		if(board[i] != CHESS_EMPTY)
 		{
+			if(flag)
+				break;
 			flag = true;
 		}
 	}
 	return EatMoves->size() + WalkMoves->size();
 }
 
-int MyAI::Expand(const int* board, const int* pieces, const int p_cnt, vector<int> *Result) 
+int MyAI::Expand(const int* board, const int* pieces, const int p_cnt, const int* covers, const int c_cnt, vector<int> *Result) 
 {
 	Result->clear();
-	vector<int> eats, walks; 
+	vector<int> eats, walks, flips;
+	
 	for(int i = 0; i < p_cnt; ++i)
 	{
 		int a = pieces[i];
@@ -540,10 +587,80 @@ int MyAI::Expand(const int* board, const int* pieces, const int p_cnt, vector<in
 			Piece_Moves(board, a, &eats, &walks);
 		}
 	}
-	Result->resize(eats.size() + walks.size());
-	copy(eats.begin(), eats.end(), Result->begin());
-	copy(walks.begin(), walks.end(), Result->begin() + eats.size());
-	return Result->size();
+	for(int i = 0; i < c_cnt; ++i)
+	{
+		flips.push_back(covers[i] * 101);
+	}
+	int e = eats.size(), w = walks.size(), f = flips.size();
+	Result->reserve(e + w + f);
+
+	//bucket sort
+	int eat_bucket[14][6] = {0};
+	int eb_cnt[14] = {0};
+	int walk_bucket[14][4] = {0};
+	int wb_cnt[14] = {0};
+	int flip_bucket[5][12] = {0};
+	int fb_cnt[5] = {0};
+	for(auto a : eats)
+	{
+		int enemy = board[a % 100];
+		eat_bucket[enemy][eb_cnt[enemy]] = a;
+		eb_cnt[enemy] += 1;
+	}
+	for(auto a : walks)
+	{
+		int moved_piece = board[a / 100];
+		walk_bucket[moved_piece][wb_cnt[moved_piece]] = a;
+		wb_cnt[moved_piece] += 1;
+	}
+	for(auto a : flips)
+	{
+		int priority = flip_ordering[a / 100];
+		flip_bucket[priority][fb_cnt[priority]] = a;
+		fb_cnt[priority] += 1;
+	}
+
+	//move ordering
+	int altitude = 0;
+	for(int i = 0; i < 14; ++i)
+	{
+		int cnt = eb_cnt[importance[i]];
+		if(cnt > 0)
+		{
+			for(int j = 0; j < cnt; ++j)
+			{
+				Result->push_back(eat_bucket[importance[i]][j]);	
+			}
+			altitude += cnt;
+		}
+	}
+	for(int i = 0; i < 14; ++i)
+	{
+		int cnt = wb_cnt[importance[i]];
+		if(cnt > 0)	
+		{
+			for(int j = 0; j < cnt; ++j)
+			{
+				Result->push_back(walk_bucket[importance[i]][j]);
+			}
+			altitude += cnt;
+		}
+	}
+	for(int i = 0; i < 5; ++i)
+	{
+		int cnt = fb_cnt[i];
+		if(cnt)
+		{
+			for(int j = 0; j < cnt; ++j)
+			{
+				Result->push_back(flip_bucket[i][j]);
+			}
+			altitude += cnt;
+		}
+	}
+	//flip
+
+	return e + w;
 }
 
 int MyAI::Piece_Moves(const int* board, const int from_location_no, vector<int> *EatMoves, vector<int> *WalkMoves)
@@ -609,12 +726,11 @@ double MyAI::Evaluate(const node* board_node)
 	return black_score - red_score;
 }
 
-double MyAI::MiniF4(node* board_node, double alpha, double beta, int depth)
+double MyAI::MiniF4(node* board_node, const int* cover_chess, double alpha, double beta, int depth)
 {
-	//cout << "MaxNode :" << id << endl;
 	bool color = this->Color;
 	vector<int> successor_positions;
-	Expand(board_node->board, board_node->rbc_pieces[color], board_node->rbc_cnt[color], &successor_positions);
+	int ew = Expand(board_node->board, board_node->rbc_pieces[color], board_node->rbc_cnt[color], board_node->rbc_pieces[2], board_node->rbc_cnt[2], &successor_positions);
 	int b = successor_positions.size();
 	if(b == 0 || depth == 0)
 	{
@@ -625,24 +741,26 @@ double MyAI::MiniF4(node* board_node, double alpha, double beta, int depth)
 	//begin
 	double m = -1 * INF;
 	node p1;
-	MakeMove(board_node, &p1, successor_positions[0], -1);
-	m = max(m, MiniG4(&p1, alpha, beta, depth - 1));
-	board_node->PV = successor_positions[0];
-	board_node->value = m;
+	if(ew != 0)
+	{
+		MakeMove(board_node, &p1, successor_positions[0], -1);
+		m = max(m, MiniG4(&p1, cover_chess, alpha, beta, depth - 1));
+		board_node->PV = successor_positions[0];
+		board_node->value = m;
 
-	if(m >= beta)
-	{	
-		//cout << "betacut: " << id << endl;
-		return m;
+		if(m >= beta)
+		{	
+			return m;
+		}
 	}
-	for(int i = 1; i < b; ++i)
+	//loop 過所有選項：先做吃子，走步再翻子
+	for(int i = 1; i < ew; ++i)
 	{
 		node pi;
 		MakeMove(board_node, &pi, successor_positions[i], -1);
-		double t = MiniG4(&pi, m, m+1, depth - 1);
+		double t = MiniG4(&pi, cover_chess, m, m+1, depth - 1);
 		if(t > m)//failed high
 		{
-			//cout << "Node: " << id << " value update by move: " << successor_positions[i] << " subtree id: " << pi << endl;
 			board_node->PV = successor_positions[i];
 			if(depth < 3 || t >= beta)
 			{
@@ -650,27 +768,72 @@ double MyAI::MiniF4(node* board_node, double alpha, double beta, int depth)
 			}
 			else
 			{
-				m = MiniG4(&pi, t, beta, depth - 1);
+				m = MiniG4(&pi, cover_chess, t, beta, depth - 1);
 			}
 		}
 		if(m >= beta)
 		{
-			//cout << "scout(b)cut: " << id << endl;
 			board_node->value = m;
 			return m;
 		}
 	}
+
+	//開找翻子棋
+	for(int i = ew; i < b; ++i)
+	{
+		double vsum = 0.0;
+		double c = 0;
+		for(int j = 0; j < 14; ++j)
+		{
+			if(cover_chess[j] != 0)
+			{
+				node pi;
+				MakeMove(board_node, &pi, successor_positions[i], j);
+				double t = MiniG4(&pi, cover_chess, m, beta, min(2, depth - 1));
+				vsum += t * cover_chess[j];
+				c += cover_chess[j];
+			}
+		}
+		double chance = vsum / c;
+		if(chance > m)
+		{
+			board_node->PV = successor_positions[i];
+			m = chance;
+		}
+		if(m >= beta)
+		{
+			board_node->value = m;
+			return m;
+		}
+		break;
+	}
+
+	/*
+	for(int i = ew; i < b; ++i)
+	{
+		node pi;
+		double t = Star1_F3(board_node, successor_positions[i], cover_chess, max(alpha, m), beta);
+		if(t > m)
+		{
+			m = t;
+		}
+		if(m >= beta)
+		{
+			board_node->value = m;
+			return m;//chance beta cutoff
+		}
+	}*/
+
 	//end
 	board_node->value = m;
 	return m;
 }
  
-double MyAI::MiniG4(node* board_node, double alpha, double beta, int depth)
+double MyAI::MiniG4(node* board_node, const int* cover_chess, double alpha, double beta, int depth)
 {
-	//cout << "MinNode :" << id << endl;
 	bool color = !(this->Color);
 	vector<int> successor_positions;
-	Expand(board_node->board, board_node->rbc_pieces[color], board_node->rbc_cnt[color], &successor_positions);
+	int ew = Expand(board_node->board, board_node->rbc_pieces[color], board_node->rbc_cnt[color], board_node->rbc_pieces[2], board_node->rbc_cnt[2], &successor_positions);
 	int b = successor_positions.size();
 	if(b == 0 || depth == 0)
 	{
@@ -680,25 +843,27 @@ double MyAI::MiniG4(node* board_node, double alpha, double beta, int depth)
 	}
 	//begin
 	double m = INF;
-	node p1;
-	MakeMove(board_node, &p1, successor_positions[0], -1);
-	//cout << "subtree: " << p1 << " by move: " << successor_positions[0] << endl;
-	m = min(m, MiniF4(&p1, alpha, beta, depth - 1));
-	board_node->PV = successor_positions[0];
-	board_node->value = m;
-	if(m <= alpha)
+	if(ew != 0)
 	{
-		//cout << "alphacut: " << id << endl;
-		return m;
+		node p1;
+		MakeMove(board_node, &p1, successor_positions[0], -1);
+		m = min(m, MiniF4(&p1, cover_chess, alpha, beta, depth - 1));
+		board_node->PV = successor_positions[0];
+		board_node->value = m;
+
+		if(m <= alpha)
+		{
+			return m;
+		}	
 	}
-	for(int i = 1; i < b; ++i)
+	//loop 過所有選項：先做吃子，走步再翻子
+	for(int i = 1; i < ew; ++i)
 	{
 		node pi;
 		MakeMove(board_node, &pi, successor_positions[i], -1);
-		double t = MiniF4(&pi, m - 1, m, depth - 1);
+		double t = MiniF4(&pi, cover_chess, m - 1, m, depth - 1);
 		if(t < m)//failed low
 		{
-			//cout << "Node: " << id << " value update by move: " << successor_positions[i] << " subtree id: " << pi << endl;
 			board_node->PV = successor_positions[i];
 			if(depth < 3 || t <= alpha)
 			{
@@ -706,17 +871,45 @@ double MyAI::MiniG4(node* board_node, double alpha, double beta, int depth)
 			}
 			else
 			{
-				m = MiniF4(&pi, alpha, t, depth - 1);
+				m = MiniF4(&pi, cover_chess, alpha, t, depth - 1);
 			}
 		}
 		if(m <= alpha)
 		{
-			//cout << "scout(a)cut: " << id << endl;
 			board_node->value = m;
 			return m;
 		}
 	}
 	//end
+
+	//開找翻子棋
+	for(int i = ew; i < b; ++i)
+	{
+		double vsum = 0.0, c = 0;
+		for(int j = 0; j < 14; ++j)
+		{
+			if(cover_chess[j] != 0)
+			{
+				node pi;
+				MakeMove(board_node, &pi, successor_positions[i], j);
+				double t = MiniF4(&pi, cover_chess, alpha, m, min(2, depth - 1));
+				vsum += t * cover_chess[j];
+				c += cover_chess[j];
+			}
+		}
+		double chance = vsum / c;
+		if(chance < m)
+		{
+			board_node->PV = successor_positions[i];
+			m = vsum / c;
+		}
+		if(m <= alpha)
+		{
+			board_node->value = m;
+			return m;
+		}
+		break;
+	}
 	board_node->value = m;
 	return m;
 }
@@ -725,7 +918,7 @@ double MyAI::NegaScout(node* board_node, double alpha, double beta, int depth)
 {
 	bool color = (depth&1) ^ (!(this->Color));
 	vector<int> successor_positions;
-	Expand(board_node->board, board_node->rbc_pieces[color], board_node->rbc_cnt[color], &successor_positions);
+	Expand(board_node->board, board_node->rbc_pieces[color], board_node->rbc_cnt[color], board_node->rbc_pieces[2], board_node->rbc_cnt[2], &successor_positions);
 	int b = successor_positions.size();
 	if(b == 0 || depth == 0)
 	{
@@ -754,6 +947,48 @@ double MyAI::NegaScout(node* board_node, double alpha, double beta, int depth)
 		n = max(alpha, m) + 1;
 	}
 	return m;
+}
+
+double MyAI::Star1_F3(node* board_node, const int move, const int* cover_chess, double alpha, double beta, const int depth)
+{
+	double values[15] = {0};
+	double A[15], B[15], m[15], M[15];
+	double vsum = 0, vmin = INF, vmax = -1*INF;
+	int c = 0;
+	node ki[15];//讓他變成1~c
+	for(int i = 0; i < 14; ++i)
+	{
+		if(cover_chess[i] != 0)
+		{
+			MakeMove(board_node, &ki[i+1], move, i);
+			values[i] = Evaluate(&ki[i+1]);
+			vmax = max(vmax, values[i]);
+			vmin = min(vmin, values[i]);
+			c += 1;
+		}
+	}
+
+	A[0] = c * (alpha - vmax) + vmax; B[0] = c * (beta - vmin) + vmin;
+	m[0] = vmin; M[0] = vmax;
+	vsum = 0.0;
+	for(int i = 1; i <= c; ++i)
+	{
+		double t = MiniG4(&ki[i], cover_chess, max(A[i-1], vmin), min(B[i-1], vmax), depth - 1);
+		m[i] = m[i-1] + (t - vmin)/c; 
+		M[i] = M[i-1] + (t - vmax)/c;
+		if(t >= B[i-1])
+		{
+			return m[i];//failed high, chance node cutoff I
+		}
+		if(t <= A[i-1])
+		{
+			return M[i];//failed low, chance node cut off II
+		}
+		vsum += t;
+		A[i] = A[i-1] + vmax - t;
+		B[i] = B[i-1] + vmin - t;
+	}
+	return vsum / c;
 }
 
 //Display chess board

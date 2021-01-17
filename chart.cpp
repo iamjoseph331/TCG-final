@@ -122,9 +122,25 @@ void convert()
 	}
 }
 
+void secondHand()
+{
+	cout << "{";
+	for(int i = 0; i < 16; ++i)
+	{
+		if(i % 4 == 0)cout << endl;
+		cout << i + 8 << ",";
+	}
+	for(int i = 16; i < 32; ++i)
+	{
+		if(i % 4 == 0)cout << endl;
+		cout << i - 8 << ",";
+	}
+	cout << "};";
+}
+
 int main()
 {
 	//printCapture();
-	convert();
+	secondHand();
 	return 0;
 }

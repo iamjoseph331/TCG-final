@@ -44,7 +44,7 @@ public:
 	struct node
 	{
 		int board[32];
-		int rbc_pieces[3][16];
+		int rbc_pieces[3][32];
 		int rbc_cnt[3];
 
 		int has_king;
@@ -97,7 +97,7 @@ private:
 	void MakeMove(const node* board_node, node* new_node, int move, const int chess);
 	bool Referee(const int* board, const int Startoint, const int EndPoint, const int color);
 	int Expand(const int* board, const int color, int *Result);
-	int Expand(const int* board, const int* pieces, const int p_cnt, vector<int> *Result);
+	int Expand(const int* board, const int* pieces, const int p_cnt, const int* covers, const int c_cnt, vector<int> *Result);
 	double Evaluate(const int* board);
 	double Evaluate(const node* board_node);
 	double Nega_max(const int* board, int* move, const int red_chess_num, const int black_chess_num, const int* cover_chess, const int color, const int depth, const int remain_depth);
@@ -111,9 +111,11 @@ private:
 	void test();
 	int Piece_Moves(const int* board, const int from_location_no, std::vector<int> *EatMoves, std::vector<int> *WalkMoves);
 	int CannonMoves(const int* board, const int position, vector<int> *EatMoves, vector<int> *WalkMoves);
-	double MiniF4(node* board_node, double alpha, double beta, int depth);
-	double MiniG4(node* board_node, double alpha, double beta, int depth);
+	double MiniF4(node* board_node, const int* cover_chess, double alpha, double beta, int depth);
+	double MiniG4(node* board_node, const int* cover_chess, double alpha, double beta, int depth);
 	double NegaScout(node* board_node, double alpha, double beta, int depth);
+	double Star1_F3(node* board_node, const int move, const int* cover_chess, double alpha, double beta, const int depth);
+	int openingHeuristic(const int* board, const int cover_count);
 
 	const bool mine[2][14] = {{1,1,1,1,1,1,1,0,0,0,0,0,0,0},{0,0,0,0,0,0,0,1,1,1,1,1,1,1}};
 	const int position_value[2][32] = {{1,2,2,1,
@@ -187,7 +189,25 @@ private:
 																				{25, 30, 28, -1},
 																				{26, 31, 29, -1},
 																				{27, 30, -1, -1}};
-	//ToDo	
+	const int flip_ordering[32] = {4,1,1,4,
+																 0,3,3,0,
+																 2,3,3,2,
+																 2,3,3,2,
+																 2,3,3,2,
+																 2,3,3,2,
+																 0,3,3,0,
+																 4,1,1,4};
+	const int importance[14] = {6,1,5,4,3,2,0,13,8,12,11,10,9,7};
+	const int second_hand[32] = {8,9,10,11,
+															 12,13,14,15,
+															 16,17,18,19,
+															 20,21,22,23,
+															 8,9,10,11,
+				 											 12,13,14,15,
+				 											 16,17,18,19,
+					 										 20,21,22,23};
+	//ToDo	 
+
 
 	};
 #endif
