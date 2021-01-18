@@ -20,7 +20,7 @@ bool MyAI::name(const char* data[], char* response){
 }
 
 bool MyAI::version(const char* data[], char* response){
-	strcpy(response, "1.0.0");
+	strcpy(response, "1.0.2");
 	return 0;
 }
 
@@ -698,16 +698,17 @@ double MyAI::Evaluate(const node* board_node)
 	// total score
 	double red_score = 0.0, black_score = 0.0;
 	double attack_rate = 1.0;
+	double piece_rate = 3.0;
 	// static material values
 	// cover and empty are both zero
-	static const double values[14] = {20,75,30,40,50,80,165,20,75,30,40,50,80,165};
+	static const double values[14] = {20,85,30,40,50,80,165,20,85,30,40,50,80,165};
 
 	vector<int> eat_moves, walk_moves;
 	
 	for(int i = 0; i < board_node->rbc_cnt[0]; ++i)
 	{
 		int a = board_node->rbc_pieces[0][i];
-		red_score += values[board_node->board[a]]; //子力價值
+		red_score += piece_rate * values[board_node->board[a]]; //子力價值
 		red_score += attack_rate * Piece_Moves(board_node->board, a, &eat_moves, &walk_moves);//可以吃到對方的分數
 		red_score += position_value[cannon_index[board_node->board[a]]][a];//位置得分
 	}
@@ -715,7 +716,7 @@ double MyAI::Evaluate(const node* board_node)
 	for(int i = 0; i < board_node->rbc_cnt[1]; ++i)
 	{
 		int b = board_node->rbc_pieces[1][i];
-		black_score += values[board_node->board[b]]; //子力價值
+		black_score += piece_rate * values[board_node->board[b]]; //子力價值
 		black_score += Piece_Moves(board_node->board, b, &eat_moves, &walk_moves);//可以吃到對方的分數
 		black_score += position_value[cannon_index[board_node->board[b]]][b];//位置得分
 	}
@@ -805,7 +806,8 @@ double MyAI::MiniF4(node* board_node, const int* cover_chess, double alpha, doub
 			board_node->value = m;
 			return m;
 		}
-		break;
+		if(i > 10)
+			break;
 	}
 
 	/*
@@ -908,7 +910,8 @@ double MyAI::MiniG4(node* board_node, const int* cover_chess, double alpha, doub
 			board_node->value = m;
 			return m;
 		}
-		break;
+		if(i > 10)
+			break;
 	}
 	board_node->value = m;
 	return m;
