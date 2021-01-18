@@ -8,14 +8,28 @@
 #include <time.h>
 #include <iostream>
 #include <vector>
+#include <random>
 
 #define RED 0
 #define BLACK 1
 #define CHESS_COVER -1
 #define CHESS_EMPTY -2
 #define COMMAND_NUM 18
+#define EXACT 0
+#define LOWER_BOUND 1
+#define UPPER_BOUND 2
+
 #define INF 99999999
 using namespace std;
+
+struct entry
+{
+	unsigned long long int password;
+	double m;
+	int depth;
+	int exact;
+	int PV;
+};
 
 class MyAI  
 {
@@ -50,6 +64,9 @@ public:
 		int has_king;
 		int PV;
 		int value;
+
+		unsigned long long int hash_red;
+		unsigned long long int hash_black;
 	};
 
 	MyAI(void);
@@ -116,6 +133,8 @@ private:
 	double NegaScout(node* board_node, double alpha, double beta, int depth);
 	double Star1_F3(node* board_node, const int move, const int* cover_chess, double alpha, double beta, const int depth);
 	int openingHeuristic(const int* board, const int cover_count);
+	void prepareHash();
+	int hash_result(const int color,const node* board_node, double* m, double* alpha, double* beta, int* PV, const int depth);
 
 	const bool mine[2][14] = {{1,1,1,1,1,1,1,0,0,0,0,0,0,0},{0,0,0,0,0,0,0,1,1,1,1,1,1,1}};
 	const int position_value[2][32] = {{1,2,2,1,
@@ -207,7 +226,8 @@ private:
 				 											 16,17,18,19,
 					 										 20,21,22,23};
 	//ToDo	 
-
+	unsigned long long int hash_red_to_move[15][32]; //14 + cover
+	unsigned long long int hash_black_to_move[15][32]; //14 + cover
 
 	};
 #endif

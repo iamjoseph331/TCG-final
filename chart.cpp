@@ -138,9 +138,21 @@ void secondHand()
 	cout << "};";
 }
 
+char picklines()
+{
+	string line;
+	getline(cin, line);
+	if(line[0] >= '0' && line[0] <='9')
+		cout << line << endl;
+	return line[0];
+}
+
 int main()
 {
 	//printCapture();
-	secondHand();
+	//secondHand();
+	char c = '1';
+	while(c!='5')
+		c = picklines();
 	return 0;
 }

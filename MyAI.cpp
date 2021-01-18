@@ -2,8 +2,10 @@
 #include "MyAI.h"
 
 #define DEPTH_LIMIT 7
+#define HASH_SIZE 25
 
 int nodecnt = 0;
+entry transposition_table[1 << HASH_SIZE];
 
 MyAI::MyAI(void){}
 
@@ -20,7 +22,7 @@ bool MyAI::name(const char* data[], char* response){
 }
 
 bool MyAI::version(const char* data[], char* response){
-	strcpy(response, "1.0.2");
+	strcpy(response, "1.1.0");
 	return 0;
 }
 
@@ -108,6 +110,7 @@ bool MyAI::game_over(const char* data[], char* response){
 }
 
 bool MyAI::ready(const char* data[], char* response){
+  prepareHash();
   //test();
   return 0;
 }
@@ -199,12 +202,23 @@ int MyAI::ConvertChessNo(int input)//convert ID(16) to ID(14)
 
 void MyAI::test()
 {
+	node root;
+	root.hash_red = 0;
+	root.hash_black = 0;
 	int test_board[32] = {0};
 	int cover_chess[14] = {0};
 	std::vector<int> red, black, cover, result;
+
 	for(int i = 0; i < 32; ++i)
 	{
 		std::cin >> test_board[i];
+		if(test_board[i] == CHESS_EMPTY)
+		{
+			continue;
+		}
+		root.hash_red ^= hash_red_to_move[test_board[i] + 1][i];
+		root.hash_black ^= hash_black_to_move[test_board[i] + 1][i];
+
 		if(test_board[i] >= 0 && test_board[i] < 7)
 		{
 			red.push_back(i);
@@ -223,8 +237,6 @@ void MyAI::test()
 	cin >> c;
 	this->Color = c;
 
-	node root;
-
 	copy(test_board, test_board+32, root.board);
 	copy(red.begin(), red.end(), root.rbc_pieces[0]);
 	copy(black.begin(), black.end(), root.rbc_pieces[1]);
@@ -241,6 +253,33 @@ void MyAI::test()
 	double maxVal = MiniF4(&root, cover_chess, -1*INF, INF, 5);
 	cout << "BestMove: " << root.PV << endl;
 	cout << "Value: " << maxVal << endl;
+}
+
+void MyAI::prepareHash()
+{
+	random_device rd;
+	mt19937_64 e2(rd());
+	unsigned long long int max = 0;
+	max = max - 1;
+	uniform_int_distribution<unsigned long long int> dist(1, max);
+	for(int i = 0; i < 15; ++i)
+	{
+		for(int j = 0; j < 32; ++j)
+		{
+			hash_red_to_move[i][j] = dist(e2);
+			hash_black_to_move[i][j] = dist(e2);
+			//cout << hash_red_to_move[i][j] << " ";
+		}
+	}
+	for(int i = 0; i < (1 << HASH_SIZE); ++i)
+	{
+		transposition_table[i].password = 0;
+		transposition_table[i].m = 0;
+		transposition_table[i].depth = 0;
+		transposition_table[i].exact = -1;
+		transposition_table[i].PV = 0;	
+	}
+	return;
 }
 
 void MyAI::initBoardState()
@@ -289,10 +328,18 @@ void MyAI::generateMove(char move[6])
 	int EndPoint = 0;
 
 	node root;
+	root.hash_red = 0;
+	root.hash_black = 0;
 	for(int i = 0; i < 3; ++i)root.rbc_cnt[i] = 0;
 	for(int i = 0; i < 32; ++i)
 	{
 		root.board[i] = this->Board[i];
+		if(this->Board[i] == CHESS_EMPTY)
+		{
+			continue;
+		}
+		root.hash_red ^= hash_red_to_move[this->Board[i] + 1][i];
+		root.hash_black ^= hash_black_to_move[this->Board[i] + 1][i];
 		if(this->Board[i] >= 0 && this->Board[i] < 7)
 		{
 			root.rbc_pieces[0][root.rbc_cnt[0]] = i;
@@ -324,7 +371,6 @@ void MyAI::generateMove(char move[6])
 		maxVal = MiniF4(&root, this->CoverChess, -1*INF, INF, DEPTH_LIMIT);
 		best_move = root.PV;
 	}
-	
 	
 	//double t = Nega_max(this->Board, &best_move, this->Red_Chess_Num, this->Black_Chess_Num, this->CoverChess, this->Color, 0, DEPTH_LIMIT);
 	
@@ -389,6 +435,12 @@ void MyAI::MakeMove(const node* board_node, node* new_node, int move, const int 
 	if(src == dst) //flip
 	{
 		new_node->board[src] = chess;
+
+		new_node->hash_red = board_node->hash_red ^ hash_red_to_move[0][src];
+		new_node->hash_red ^= hash_red_to_move[chess + 1][src];
+		new_node->hash_black = board_node->hash_black ^ hash_black_to_move[0][src];
+		new_node->hash_black ^= hash_black_to_move[chess + 1][src];
+		
 		int belong = mine[1][chess];
 		new_node->rbc_pieces[belong][new_node->rbc_cnt[belong]] = src;
 		new_node->rbc_cnt[belong] += 1;
@@ -411,9 +463,16 @@ void MyAI::MakeMove(const node* board_node, node* new_node, int move, const int 
 	}
 	else
 	{
-		if(board_node->board[dst] >= 0)//吃掉 !color 的棋 找出來減掉
+		new_node->hash_red = board_node->hash_red;
+		new_node->hash_black = board_node->hash_black;
+
+		int enemy_piece = board_node->board[dst];
+		if(enemy_piece >= 0)//吃掉 !color 的棋 找出來減掉
 		{
-			if(board_node->board[dst] % 7 == 6)
+			new_node->hash_red ^= hash_red_to_move[enemy_piece + 1][dst];
+			new_node->hash_black ^= hash_black_to_move[enemy_piece + 1][dst]; 
+
+			if(enemy_piece % 7 == 6)
 			{
 				new_node->has_king &= (!color + 1);
 			}
@@ -442,6 +501,12 @@ void MyAI::MakeMove(const node* board_node, node* new_node, int move, const int 
 				break;
 			}
 		}
+		int myPiece = board_node->board[src];
+		new_node->hash_red ^= hash_red_to_move[myPiece + 1][src];//去掉自己(移動)
+		new_node->hash_red ^= hash_red_to_move[myPiece + 1][dst];//加上自己(移動)
+		new_node->hash_black ^= hash_black_to_move[myPiece + 1][src];//去掉自己(移動)
+		new_node->hash_black ^= hash_black_to_move[myPiece + 1][dst];//加上自己(移動)
+
 		new_node->board[dst] = board_node->board[src];
 		new_node->board[src] = CHESS_EMPTY;
 	}
@@ -727,9 +792,77 @@ double MyAI::Evaluate(const node* board_node)
 	return black_score - red_score;
 }
 
+//result of looking up transposition table
+//return value: to continue search or not 
+
+int MyAI::hash_result(const int color, const node* board_node, double* m, double* alpha, double* beta, int* PV, const int depth)
+{
+	unsigned long long int entry_id = 0;
+	if(color == RED)
+	{
+		entry_id = board_node->hash_red & ((1 << HASH_SIZE) - 1);
+		if(transposition_table[entry_id].password != board_node->hash_red)//hash miss
+		{
+			return -1;
+		}
+	}
+	else
+	{
+		entry_id = board_node->hash_black & ((1 << HASH_SIZE) - 1);
+		if(transposition_table[entry_id].password != board_node->hash_black)//hash miss
+		{
+			return -1;
+		}
+	}
+	// test depth
+	int ex = transposition_table[entry_id].exact;
+	if(transposition_table[entry_id].depth >= DEPTH_LIMIT - depth)
+	{
+		*PV = transposition_table[entry_id].PV;
+		if(ex == EXACT)
+		{
+			*m = transposition_table[entry_id].m;
+			return 1;
+		}
+		else if(ex == LOWER_BOUND)
+		{
+			*alpha = transposition_table[entry_id].m;
+		}
+		else if(ex == UPPER_BOUND)
+		{
+			*beta = transposition_table[entry_id].m;
+		}
+	}
+	else
+	{
+		//參考
+		if(ex == EXACT)
+		{
+			*m = transposition_table[entry_id].m;
+			*PV = transposition_table[entry_id].PV;
+			return 0;
+		}
+		return -1;
+	}
+	return 0;
+}
+
 double MyAI::MiniF4(node* board_node, const int* cover_chess, double alpha, double beta, int depth)
 {
 	bool color = this->Color;
+	unsigned long long int entry_id = (color == RED ? board_node->hash_red & ((1 << HASH_SIZE) - 1) : board_node->hash_black & ((1 << HASH_SIZE) - 1));
+	unsigned long long int pass = (color == RED ? board_node->hash_red : board_node->hash_black);
+	double m = -1 * INF;
+	int pv;
+	if(hash_result(color, board_node, &m, &alpha, &beta, &pv, depth) == 1)
+	{
+		board_node->value = m;
+		board_node->PV = pv;
+		return m;
+	}
+	transposition_table[entry_id].password = pass;
+	transposition_table[entry_id].depth = DEPTH_LIMIT - depth;
+
 	vector<int> successor_positions;
 	int ew = Expand(board_node->board, board_node->rbc_pieces[color], board_node->rbc_cnt[color], board_node->rbc_pieces[2], board_node->rbc_cnt[2], &successor_positions);
 	int b = successor_positions.size();
@@ -739,8 +872,8 @@ double MyAI::MiniF4(node* board_node, const int* cover_chess, double alpha, doub
 		board_node->value = val;
 		return val;
 	}
+
 	//begin
-	double m = -1 * INF;
 	node p1;
 	if(ew != 0)
 	{
@@ -751,6 +884,9 @@ double MyAI::MiniF4(node* board_node, const int* cover_chess, double alpha, doub
 
 		if(m >= beta)
 		{	
+			transposition_table[entry_id].m = m;
+			transposition_table[entry_id].exact = LOWER_BOUND;
+			transposition_table[entry_id].PV = successor_positions[0];
 			return m;
 		}
 	}
@@ -775,6 +911,9 @@ double MyAI::MiniF4(node* board_node, const int* cover_chess, double alpha, doub
 		if(m >= beta)
 		{
 			board_node->value = m;
+			transposition_table[entry_id].m = m;
+			transposition_table[entry_id].exact = LOWER_BOUND;
+			transposition_table[entry_id].PV = board_node->PV;
 			return m;
 		}
 	}
@@ -803,6 +942,9 @@ double MyAI::MiniF4(node* board_node, const int* cover_chess, double alpha, doub
 		}
 		if(m >= beta)
 		{
+			transposition_table[entry_id].m = m;
+			transposition_table[entry_id].exact = LOWER_BOUND;
+			transposition_table[entry_id].PV = board_node->PV;
 			board_node->value = m;
 			return m;
 		}
@@ -827,6 +969,16 @@ double MyAI::MiniF4(node* board_node, const int* cover_chess, double alpha, doub
 	}*/
 
 	//end
+	transposition_table[entry_id].m = m;
+	transposition_table[entry_id].PV = board_node->PV;
+	if(m > alpha)
+	{
+		transposition_table[entry_id].exact = EXACT;
+	}
+	else
+	{
+		transposition_table[entry_id].exact = UPPER_BOUND;
+	}
 	board_node->value = m;
 	return m;
 }
@@ -834,6 +986,19 @@ double MyAI::MiniF4(node* board_node, const int* cover_chess, double alpha, doub
 double MyAI::MiniG4(node* board_node, const int* cover_chess, double alpha, double beta, int depth)
 {
 	bool color = !(this->Color);
+	unsigned long long int entry_id = (color == RED ? board_node->hash_red & ((1 << HASH_SIZE) - 1) : board_node->hash_black & ((1 << HASH_SIZE) - 1));
+	unsigned long long int pass = (color == RED ? board_node->hash_red : board_node->hash_black);
+	double m = INF;
+	int pv;
+	if(hash_result(color, board_node, &m, &alpha, &beta, &pv, depth) == 1)
+	{
+		board_node->value = m;
+		board_node->PV = pv;
+		return m;
+	}
+	transposition_table[entry_id].password = pass;
+	transposition_table[entry_id].depth = DEPTH_LIMIT - depth;
+
 	vector<int> successor_positions;
 	int ew = Expand(board_node->board, board_node->rbc_pieces[color], board_node->rbc_cnt[color], board_node->rbc_pieces[2], board_node->rbc_cnt[2], &successor_positions);
 	int b = successor_positions.size();
@@ -843,11 +1008,11 @@ double MyAI::MiniG4(node* board_node, const int* cover_chess, double alpha, doub
 		board_node->value = val;
 		return val;
 	}
-	//begin
-	double m = INF;
+
+	//begin	
+	node p1;
 	if(ew != 0)
 	{
-		node p1;
 		MakeMove(board_node, &p1, successor_positions[0], -1);
 		m = min(m, MiniF4(&p1, cover_chess, alpha, beta, depth - 1));
 		board_node->PV = successor_positions[0];
@@ -855,6 +1020,9 @@ double MyAI::MiniG4(node* board_node, const int* cover_chess, double alpha, doub
 
 		if(m <= alpha)
 		{
+			transposition_table[entry_id].m = m;
+			transposition_table[entry_id].exact = UPPER_BOUND;
+			transposition_table[entry_id].PV = successor_positions[0];
 			return m;
 		}	
 	}
@@ -879,6 +1047,9 @@ double MyAI::MiniG4(node* board_node, const int* cover_chess, double alpha, doub
 		if(m <= alpha)
 		{
 			board_node->value = m;
+			transposition_table[entry_id].m = m;
+			transposition_table[entry_id].exact = UPPER_BOUND;
+			transposition_table[entry_id].PV = board_node->PV;
 			return m;
 		}
 	}
@@ -903,15 +1074,29 @@ double MyAI::MiniG4(node* board_node, const int* cover_chess, double alpha, doub
 		if(chance < m)
 		{
 			board_node->PV = successor_positions[i];
-			m = vsum / c;
+			m = chance;
 		}
 		if(m <= alpha)
 		{
+			transposition_table[entry_id].m = m;
+			transposition_table[entry_id].exact = UPPER_BOUND;
+			transposition_table[entry_id].PV = board_node->PV;
 			board_node->value = m;
 			return m;
 		}
 		if(i > 10)
 			break;
+	}
+
+	transposition_table[entry_id].m = m;
+	transposition_table[entry_id].PV = board_node->PV;
+	if(m < beta)
+	{
+		transposition_table[entry_id].exact = EXACT;
+	}
+	else
+	{
+		transposition_table[entry_id].exact = LOWER_BOUND;
 	}
 	board_node->value = m;
 	return m;
