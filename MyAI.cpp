@@ -24,7 +24,7 @@ bool MyAI::name(const char* data[], char* response){
 }
 
 bool MyAI::version(const char* data[], char* response){
-	strcpy(response, "2.2.1");
+	strcpy(response, "2.0.1");
 	return 0;
 }
 
@@ -582,7 +582,7 @@ void MyAI::MakeMove(int* board, int* red_chess_num, int* black_chess_num, int* c
 	/* init time */
 }
 
-int MyAI::CannonMoves(const int* board, const int position, vector<int> *EatMoves, vector<int> *WalkMoves, vector<int>* potential, const int* values)
+int MyAI::CannonMoves(const int* board, const int position, vector<int> *EatMoves, vector<int> *WalkMoves, const int* values)
 {
 	int value = 0;
 	int from = 100 * position;
@@ -613,10 +613,7 @@ int MyAI::CannonMoves(const int* board, const int position, vector<int> *EatMove
 		if(board[i] != CHESS_EMPTY)
 		{
 			if(flag)
-			{
-				potential->push_back(i);
 				break;
-			}
 			flag = true;
 		}
 	}
@@ -637,10 +634,7 @@ int MyAI::CannonMoves(const int* board, const int position, vector<int> *EatMove
 		if(board[i] != CHESS_EMPTY)
 		{
 			if(flag)
-			{
-				potential->push_back(i);
 				break;
-			}
 			flag = true;
 		}
 	}
@@ -661,10 +655,7 @@ int MyAI::CannonMoves(const int* board, const int position, vector<int> *EatMove
 		if(board[i] != CHESS_EMPTY)
 		{
 			if(flag)
-			{
-				potential->push_back(i);
 				break;
-			}
 			flag = true;
 		}
 	}	
@@ -685,10 +676,7 @@ int MyAI::CannonMoves(const int* board, const int position, vector<int> *EatMove
 		if(board[i] != CHESS_EMPTY)
 		{
 			if(flag)
-			{
-				potential->push_back(i);
 				break;
-			}
 			flag = true;
 		}
 	}
@@ -698,14 +686,14 @@ int MyAI::CannonMoves(const int* board, const int position, vector<int> *EatMove
 int MyAI::Expand(const int* board, const int* pieces, const int p_cnt, const int* covers, const int c_cnt, vector<int> *Result) 
 {
 	Result->clear();
-	vector<int> eats, walks, flips, prior, last, potential;
+	vector<int> eats, walks, flips;
 	
 	for(int i = 0; i < p_cnt; ++i)
 	{
 		int a = pieces[i];
 		if(cannon_index[board[a]])
 		{
-			CannonMoves(board, a, &eats, &walks, &potential, ori_values);
+			CannonMoves(board, a, &eats, &walks, ori_values);
 		}
 		else
 		{
@@ -714,14 +702,7 @@ int MyAI::Expand(const int* board, const int* pieces, const int p_cnt, const int
 	}
 	for(int i = 0; i < c_cnt; ++i)
 	{
-		if(find(potential.begin(),potential.end(),covers[i]) != potential.end())
-		{
-			prior.push_back(covers[i] * 101);
-		}
-		else
-		{
-			flips.push_back(covers[i] * 101);	
-		}
+		flips.push_back(covers[i] * 101);
 	}
 	int e = eats.size(), w = walks.size(), f = flips.size();
 	Result->reserve(e + w + f);
@@ -778,11 +759,6 @@ int MyAI::Expand(const int* board, const int* pieces, const int p_cnt, const int
 			altitude += cnt;
 		}
 	}
-	int p = prior.size();
-	for(int i = 0; i < p; ++i)
-	{
-		Result->push_back(prior[i]);
-	}
 	for(int i = 0; i < 5; ++i)
 	{
 		int cnt = fb_cnt[i];
@@ -806,10 +782,9 @@ int MyAI::Piece_Moves(const int* board, const int from_location_no, vector<int>*
 	int mv_cnt = move_dir_count[from_location_no];
 	int from = from_location_no * 100;
 	bool isCannon = cannon_index[ board[from_location_no] ];
-	vector<int> potential;
 	if(isCannon)
 	{
-		value = CannonMoves(board, from_location_no, EatMoves, WalkMoves, &potential, values);
+		value = CannonMoves(board, from_location_no, EatMoves, WalkMoves, values);
 	}
 	else
 	{
@@ -933,13 +908,13 @@ double MyAI::EvaluateEndGame(const node* board_node)
 			my_score += 0.8 * modified_values[corner_piece];
 		}
 	}
-
-	for(int i = 0; i < board_node->rbc_cnt[ene_color]; ++i)
+	int cnt = board_node->rbc_cnt[ene_color];
+	for(int i = 0; i < cnt; ++i)
 	{
 		eat_moves.clear();
 		walk_moves.clear();
 		int b = board_node->rbc_pieces[ene_color][i];
-		ene_score += modified_values[board_node->board[b]]; //子力價值
+		ene_score += 2 * modified_values[board_node->board[b]]; //子力價值
 		ene_score += suicide_prevent * Piece_Moves(board_node->board, b, &eat_moves, &walk_moves, modified_values);//可以吃到對方的分數
 		ene_score += modified_values[board_node->board[b]] * 0.25 * (walk_moves.size() + eat_moves.size());
 	}

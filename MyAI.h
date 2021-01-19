@@ -132,7 +132,7 @@ private:
 	//Final
 	void test();
 	int Piece_Moves(const int* board, const int from_location_no, std::vector<int> *EatMoves, std::vector<int> *WalkMoves, const int* values);
-	int CannonMoves(const int* board, const int position, vector<int> *EatMoves, vector<int> *WalkMoves, vector<int>* potential, const int* values);
+	int CannonMoves(const int* board, const int position, vector<int> *EatMoves, vector<int> *WalkMoves, const int* values);
 	double MiniF4(node* board_node, const int* cover_chess, double alpha, double beta, int depth);
 	double MiniG4(node* board_node, const int* cover_chess, double alpha, double beta, int depth);
 	double NegaScout(node* board_node, double alpha, double beta, int depth);
@@ -238,7 +238,7 @@ private:
 																		 {0,0,0,0,0,0,1,0,0,0,0,0,0,1},
 																		 {0,0,0,0,0,1,0,0,0,0,0,0,1,0},
 																		 {1,1,1,1,1,1,1,1,1,1,1,1,1,1}};
-	const int ori_values[14] = {20,85,30,40,50,80,165,20,85,30,40,50,80,165};
+	const int ori_values[14] = {30,85,35,40,50,80,165,30,85,35,40,50,80,165};
 	const int corner_position[32] = {5,4,7,6,
 																	 1,0,3,2,
 																	 5,4,7,6,
