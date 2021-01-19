@@ -119,7 +119,7 @@ private:
 	void MakeMove(const node* board_node, node* new_node, int move, const int chess);
 	bool Referee(const int* board, const int Startoint, const int EndPoint, const int color);
 	int Expand(const int* board, const int color, int *Result);
-	int Expand(const int* board, const int* pieces, const int p_cnt, const int* covers, const int c_cnt, vector<int> *Result);
+	int Expand(const node* board_node, const int color, vector<int> *Result);
 	double Evaluate(const int* board);
 	double Evaluate(const node* board_node);
 	double Nega_max(const int* board, int* move, const int red_chess_num, const int black_chess_num, const int* cover_chess, const int color, const int depth, const int remain_depth);
@@ -132,7 +132,7 @@ private:
 	//Final
 	void test();
 	int Piece_Moves(const int* board, const int from_location_no, std::vector<int> *EatMoves, std::vector<int> *WalkMoves, const int* values);
-	int CannonMoves(const int* board, const int position, vector<int> *EatMoves, vector<int> *WalkMoves, const int* values);
+	int CannonMoves(const int* board, const int position, vector<int> *EatMoves, vector<int> *WalkMoves, vector<int> *firepositions, const int* values);
 	double MiniF4(node* board_node, const int* cover_chess, double alpha, double beta, int depth);
 	double MiniG4(node* board_node, const int* cover_chess, double alpha, double beta, int depth);
 	double NegaScout(node* board_node, double alpha, double beta, int depth);
