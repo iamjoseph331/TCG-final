@@ -8,6 +8,7 @@
 #include <time.h>
 #include <iostream>
 #include <vector>
+#include <algorithm>
 #include <random>
 
 #define RED 0
@@ -18,6 +19,10 @@
 #define EXACT 0
 #define LOWER_BOUND 1
 #define UPPER_BOUND 2
+#define KILLCANNON 0
+#define KILLKING 1
+#define KILLGUARDS 2
+#define KILLALL 3
 
 #define INF 99999999
 using namespace std;
@@ -126,8 +131,8 @@ private:
 
 	//Final
 	void test();
-	int Piece_Moves(const int* board, const int from_location_no, std::vector<int> *EatMoves, std::vector<int> *WalkMoves);
-	int CannonMoves(const int* board, const int position, vector<int> *EatMoves, vector<int> *WalkMoves);
+	int Piece_Moves(const int* board, const int from_location_no, std::vector<int> *EatMoves, std::vector<int> *WalkMoves, const int* values);
+	int CannonMoves(const int* board, const int position, vector<int> *EatMoves, vector<int> *WalkMoves, vector<int>* potential, const int* values);
 	double MiniF4(node* board_node, const int* cover_chess, double alpha, double beta, int depth);
 	double MiniG4(node* board_node, const int* cover_chess, double alpha, double beta, int depth);
 	double NegaScout(node* board_node, double alpha, double beta, int depth);
@@ -135,7 +140,8 @@ private:
 	int openingHeuristic(const int* board, const int cover_count);
 	void prepareHash();
 	int hash_result(const int color,const node* board_node, double* m, double* alpha, double* beta, int* PV, const int depth);
-
+	void intoEndGame(const node* root);
+	double EvaluateEndGame(const node* board_node);
 	const bool mine[2][14] = {{1,1,1,1,1,1,1,0,0,0,0,0,0,0},{0,0,0,0,0,0,0,1,1,1,1,1,1,1}};
 	const int position_value[2][32] = {{1,2,2,1,
 																		2,3,3,2,
@@ -154,6 +160,7 @@ private:
 																		3,2,2,3,
 																		4,3,3,4}};
 	const int cannon_index[14] = {0,1,0,0,0,0,0,0,1,0,0,0,0,0};
+	const int pawn_index[14] = {1,0,0,0,0,0,0,1,0,0,0,0,0,0};
 	const int capture_chart[14][14] = {{0,0,0,0,0,0,0,1,0,0,0,0,0,1},
 																		{0,0,0,0,0,0,0,1,1,1,1,1,1,1},
 																		{0,0,0,0,0,0,0,1,1,1,0,0,0,0},
@@ -225,7 +232,21 @@ private:
 				 											 12,13,14,15,
 				 											 16,17,18,19,
 					 										 20,21,22,23};
-	//ToDo	 
+	const bool big_pieces[14] = {0,1,0,0,1,1,1,0,1,0,0,1,1,1};
+	const int endgame_values[14] = {4,50,5,5,20,50,70,4,50,5,5,20,50,70};
+	const bool state_targets[4][14] = {{0,1,0,0,0,0,0,0,1,0,0,0,0,0},
+																		 {0,0,0,0,0,0,1,0,0,0,0,0,0,1},
+																		 {0,0,0,0,0,1,0,0,0,0,0,0,1,0},
+																		 {1,1,1,1,1,1,1,1,1,1,1,1,1,1}};
+	const int ori_values[14] = {20,85,30,40,50,80,165,20,85,30,40,50,80,165};
+	const int corner_position[32] = {5,4,7,6,
+																	 1,0,3,2,
+																	 5,4,7,6,
+																	 9,8,11,10,
+																	 21,20,23,22,
+						 											 25,24,27,26,
+						 											 29,28,31,30,
+							 										 25,24,27,26};
 	unsigned long long int hash_red_to_move[15][32]; //14 + cover
 	unsigned long long int hash_black_to_move[15][32]; //14 + cover
 
